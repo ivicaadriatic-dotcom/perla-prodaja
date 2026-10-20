@@ -188,7 +188,7 @@ tfoot td{border-top:1px solid var(--crta);border-bottom:0;font-weight:680;backgr
 .graf{height:132px;display:flex;align-items:flex-end;gap:3px;padding:14px 18px 0;position:relative}
 .graf i{flex:1;display:flex;align-items:flex-end;height:100%;cursor:default}
 .graf i u{display:block;width:100%;background:var(--s3);border-radius:4px 4px 0 0;min-height:2px;transition:opacity .12s}
-.graf i:hover u{opacity:.65}
+.graf i:hover u,.graf i.on u{opacity:.65}
 .graf svg.trend{position:absolute;inset:14px 18px 0;width:calc(100% - 36px);height:calc(100% - 14px);pointer-events:none;overflow:visible}
 .graf svg.trend path{fill:none;stroke:var(--crvena);stroke-width:2;stroke-dasharray:6 5;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .osx{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--muted);padding:7px 18px 14px}
@@ -1299,6 +1299,21 @@ function crtajGraf(){
   const niz=poDanu(30), v=niz.map(x=>x.iznos), max=Math.max(...v,1);
   el.innerHTML = niz.map(x=>`<i data-t="${fDate(x.datum)}" data-v="${eur2(x.iznos)}" data-k="${x.komada}"><u style="height:${Math.max(3,100*x.iznos/max)}%"></u></i>`).join('')
     + `<svg class="trend" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${krivulja(klizni(v,7),max,v.length)}"/></svg>`;
+  /* oblačić: stupac se računa iz vodoravnog položaja miša, pa ne ovisi
+     o tome na koji je točno element pokazivač ušao */
+  const pad=18;
+  el.onpointerleave = ()=>{ tipSakrij(); el.querySelectorAll('i.on').forEach(b=>b.classList.remove('on')); };
+  el.onpointermove = e=>{
+    const r=el.getBoundingClientRect();
+    const sir=(r.width-2*pad)/niz.length;
+    let i=Math.floor((e.clientX-r.left-pad)/sir);
+    i=Math.max(0, Math.min(niz.length-1, i));
+    const x=niz[i];
+    tipPrikazi(`<b>${eur2(x.iznos)}</b><span>${brj(x.komada)} ${mn(x.komada,'napitak','napitka','napitaka')}</span><span>${fDate(x.datum)}</span>`,
+               e.clientX, e.clientY);
+    el.querySelectorAll('i').forEach((b,j)=>b.classList.toggle('on', j===i));
+  };
+
   $('#g1').textContent = fDate(niz[0].datum).slice(0,6);
   const z=v.slice(-7).reduce((a,b)=>a+b,0)/7, r=v.slice(-14,-7).reduce((a,b)=>a+b,0)/7;
   const p=r?Math.round(100*(z-r)/r):0;
@@ -1656,6 +1671,10 @@ function pgPostavke(){
           <div class="red"><div class="t"><b>Verzija</b><span>Perla Notte · Prodaja</span></div><div class="r">${APP_VER}</div></div>
           <div class="red"><div class="t"><b>Prijavljeni</b><span>${esc(AUTH?AUTH.email:'')}</span></div><div class="r">${jeAdmin()?'vlasnik':'pregled'}</div></div>
           <div class="red"><div class="t"><b>Uživo</b><span>veza sa Supabaseom</span></div><div class="r">${RT.ok?'<span class="gore">spojeno</span>':'<span class="mu">spaja se…</span>'}</div></div>
+          <div class="red"><div class="t"><b>Tema</b><span>svijetla ili tamna</span></div>
+            <div class="r"><button class="btn sm" onclick="temaToggle()">${ic('moon')}Promijeni</button></div></div>
+          <div class="red"><div class="t"><b>Odjava</b><span>${esc(AUTH?AUTH.email:'')}</span></div>
+            <div class="r"><button class="btn sm ghost" onclick="odjava()">${ic('out')}Odjavi me</button></div></div>
         </div>
       </div>
     </div>
@@ -1779,20 +1798,18 @@ primijeniTemu();
 })();
 
 /* opisni oblačić nad stupcima grafa */
-const tip = (()=>{ const d=document.createElement('div'); d.id='tip'; document.body.appendChild(d); return d; })();
-document.addEventListener('mouseover', e=>{
-  const b=e.target.closest('[data-t]'); if(!b){ tip.style.opacity=0; return; }
-  const k=+(b.dataset.k||0);
-  tip.innerHTML=`<b>${esc(b.dataset.v)}</b>`
-    + (b.dataset.k!==undefined ? `<span>${brj(k)} ${mn(k,'napitak','napitka','napitaka')}</span>` : '')
-    + `<span>${esc(b.dataset.t)}</span>`;
-  tip.style.opacity=1;
-});
-document.addEventListener('mousemove', e=>{
-  if(tip.style.opacity!=='1') return;
-  tip.style.left=Math.min(e.clientX+14, innerWidth-tip.offsetWidth-10)+'px';
-  tip.style.top=Math.max(8, e.clientY-tip.offsetHeight-12)+'px';
-});
+function tipEl(){
+  let t=document.getElementById('tip');
+  if(!t){ t=document.createElement('div'); t.id='tip'; document.body.appendChild(t); }
+  return t;
+}
+function tipPrikazi(html, x, y){
+  const t=tipEl();
+  t.innerHTML=html; t.style.opacity='1';
+  t.style.left=Math.min(x+14, innerWidth-t.offsetWidth-10)+'px';
+  t.style.top =Math.max(8, y-t.offsetHeight-12)+'px';
+}
+function tipSakrij(){ const t=document.getElementById('tip'); if(t) t.style.opacity='0'; }
 /* uvoz i logo trebaju zakačiti događaje nakon svakog crtanja */
 const _crtaj = crtaj;
 crtaj = function(){
