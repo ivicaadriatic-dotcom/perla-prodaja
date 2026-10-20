@@ -151,6 +151,7 @@ svg.karta{position:absolute;inset:0;width:100%;height:100%}
 .bar{height:7px;border-radius:4px;background:var(--kart2);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:4px;background:var(--s3)}
 .bar.mini{height:5px;margin-top:5px}
+.tocka{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:7px;flex:none}
 
 /* ---------- gradovi ---------- */
 .gradovi{padding:7px 9px 10px;display:flex;flex-direction:column;gap:2px}
@@ -430,7 +431,7 @@ const $$ = (s,r)=>[...(r||document).querySelectorAll(s)];
 const pad = n=>String(n).padStart(2,'0');
 const esc = s=>String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num = v=>{ if(typeof v==='number') return v; const n=parseFloat(String(v||'').replace(/\s/g,'').replace(',','.')); return isNaN(n)?0:n; };
-const eur  = n=>new Intl.NumberFormat('hr-HR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const eur  = n=>new Intl.NumberFormat('hr-HR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const eur2 = n=>new Intl.NumberFormat('hr-HR',{style:'currency',currency:'EUR',minimumFractionDigits:2}).format(n||0);
 const brj  = n=>new Intl.NumberFormat('hr-HR').format(n||0);
 const isoDate = d=>{ d=d||new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
@@ -1047,6 +1048,34 @@ const ukupno = ()=>{ const s=redci().reduce((a,r)=>({iznos:a.iznos+num(r.iznos),
 const aparat = o=>DB.aparati.find(a=>a.oznaka===o)||{};
 const pst = n=>(isFinite(n)?n:0).toFixed(1).replace('.',',');
 
+/* boja po okusu — da se trake razlikuju na prvi pogled.
+   Redoslijed je bitan: uži pojam mora doći prije općenitog („čokolada"). */
+const OKUS_BOJE = [
+  [/malin|raspberr/i,             '#d93a6a'],
+  [/jagod|strawberr/i,            '#ff6482'],
+  [/vanil/i,                      '#ff9f0a'],
+  [/lje[sš]nj|hazel/i,            '#d2820a'],
+  [/swiss|supreme/i,              '#e0552f'],
+  [/cookie|cream/i,               '#aab8c6'],
+  [/banan/i,                      '#f5c518'],
+  [/dubai/i,                      '#e8b00a'],
+  [/jaffa|naran[čc]|orange/i,     '#ff7a30'],
+  [/pista[cč]|pistach/i,          '#7cc46a'],
+  [/kokos|coconut/i,              '#cfd6dd'],
+  [/white|bijel/i,                '#e3d9cb'],
+  [/karamel|caramel/i,            '#c98a3a'],
+  [/kava|coffee|espresso|cappu/i, '#8b5e3c'],
+  [/menta|mint/i,                 '#34c759'],
+  [/[cč]okolad|choco/i,           '#a9603a']
+];
+const OKUS_REZERVA = ['#5e9cff','#af52de','#32ade6','#ff2d55','#30b0c7','#ffd60a','#66d19e','#ff6b35'];
+function bojaOkusa(ime){
+  const t = String(ime||'');
+  for(const [re,b] of OKUS_BOJE) if(re.test(t)) return b;
+  let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0;
+  return OKUS_REZERVA[h%OKUS_REZERVA.length];
+}
+
 /* ---------- ljuska ---------- */
 function ljuska(){
   document.body.className='';
@@ -1189,10 +1218,10 @@ function pgPregled(){
       <div class="kart">
         <div class="sek"><h2>Najprodavaniji okusi</h2><span>${esc(perNaziv())}</span></div>
         <div class="popis">${(()=>{ const P=poProizvodu().slice(0,8); const mx=Math.max(...P.map(p=>p.iznos),1);
-          return P.length?P.map(p=>`<div class="red">
-            <div class="t"><b>${esc(p.proizvod)}</b><span>${brj(p.komada)} kom · ${eur2(p.komada?p.iznos/p.komada:0)} po komadu</span>
-              <div class="bar mini"><i style="width:${Math.max(2,100*p.iznos/mx)}%"></i></div></div>
-            <div class="r"><b>${eur(p.iznos)}</b></div></div>`).join('')
+          return P.length?P.map(p=>{ const b=bojaOkusa(p.proizvod); return `<div class="red">
+            <div class="t"><b><span class="tocka" style="background:${b}"></span>${esc(p.proizvod)}</b><span>${brj(p.komada)} kom · ${eur2(p.komada?p.iznos/p.komada:0)} po komadu</span>
+              <div class="bar mini"><i style="width:${Math.max(2,100*p.iznos/mx)}%;background:${b}"></i></div></div>
+            <div class="r"><b>${eur(p.iznos)}</b></div></div>`; }).join('')
           : `<div class="prazno">${ic('tag')}Nema prodaje u ovom razdoblju</div>`; })()}</div>
       </div>
     </div>
@@ -1343,7 +1372,7 @@ function pgProdaja(){
     <div class="tbl-om"><table>
       <thead><tr><th>Okus</th><th>Komada</th><th>Promet</th><th>Po komadu</th><th>Udio</th></tr></thead>
       <tbody>${P.length?P.map(p=>`<tr>
-        <td><b>${esc(p.proizvod)}</b></td>
+        <td><b><span class="tocka" style="background:${bojaOkusa(p.proizvod)}"></span>${esc(p.proizvod)}</b></td>
         <td class="broj">${brj(p.komada)}</td>
         <td class="broj"><b>${eur2(p.iznos)}</b></td>
         <td class="broj mu">${p.komada?eur2(p.iznos/p.komada):'—'}</td>
