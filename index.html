@@ -16,6 +16,9 @@
   --plava:#007aff; --zelena:#34c759; --naran:#ff9500; --crvena:#ff3b30; --ljub:#af52de;
   --more:#0b1622; --kopno:#dcdfe4; --kopno2:#cfd3d9; --rub-hr:#585e68; --rub-sus:#b2b7bf;
   --s1:#1f5c33; --s2:#2a8f4a; --s3:#34c759; --s4:#7ae69a;
+  /* paleta za okuse — koraci za tamnu podlogu */
+  --sb1:#3987e5; --sb2:#d95926; --sb3:#199e70; --sb4:#c98500;
+  --sb5:#d55181; --sb6:#008300; --sb7:#9085e9; --sb8:#e66767;
   --r:18px; --sjena:0 8px 30px rgba(0,0,0,.5);
   --bok:252px;
 }
@@ -24,6 +27,8 @@
   --text:#1c1c1e; --text2:#3a3a3c; --muted:#8e8e93;
   --more:#e6ebf2; --kopno:#dcdfe4; --kopno2:#cfd3d9; --rub-hr:#585e68; --rub-sus:#b2b7bf;
   --s1:#a8e6bd; --s2:#5fd183; --s3:#2fb355; --s4:#15823a;
+  --sb1:#2a78d6; --sb2:#eb6834; --sb3:#1baf7a; --sb4:#eda100;
+  --sb5:#e87ba4; --sb6:#008300; --sb7:#6250d6; --sb8:#e34948;
   --sjena:0 8px 30px rgba(0,0,0,.08);
 }
 *{box-sizing:border-box}
@@ -1048,32 +1053,33 @@ const ukupno = ()=>{ const s=redci().reduce((a,r)=>({iznos:a.iznos+num(r.iznos),
 const aparat = o=>DB.aparati.find(a=>a.oznaka===o)||{};
 const pst = n=>(isFinite(n)?n:0).toFixed(1).replace('.',',');
 
-/* boja po okusu — da se trake razlikuju na prvi pogled.
-   Redoslijed je bitan: uži pojam mora doći prije općenitog („čokolada"). */
-const OKUS_BOJE = [
-  [/malin|raspberr/i,             '#d93a6a'],
-  [/jagod|strawberr/i,            '#ff6482'],
-  [/vanil/i,                      '#ff9f0a'],
-  [/lje[sš]nj|hazel/i,            '#d2820a'],
-  [/swiss|supreme/i,              '#e0552f'],
-  [/cookie|cream/i,               '#aab8c6'],
-  [/banan/i,                      '#f5c518'],
-  [/dubai/i,                      '#e8b00a'],
-  [/jaffa|naran[čc]|orange/i,     '#ff7a30'],
-  [/pista[cč]|pistach/i,          '#7cc46a'],
-  [/kokos|coconut/i,              '#cfd6dd'],
-  [/white|bijel/i,                '#e3d9cb'],
-  [/karamel|caramel/i,            '#c98a3a'],
-  [/kava|coffee|espresso|cappu/i, '#8b5e3c'],
-  [/menta|mint/i,                 '#34c759'],
-  [/[cč]okolad|choco/i,           '#a9603a']
+/* Boja okusa. Posao boje ovdje je razlikovanje stavki, ne opisivanje okusa —
+   zato osam tonova koji se međusobno jasno razdvajaju, i u tamnoj i u svijetloj
+   temi, uključujući za daltoniste. Boja je vezana uz okus, ne uz mjesto na
+   ljestvici: kad suzite pregled na grad ili aparat, preživjele stavke ne
+   mijenjaju boju. */
+const OKUS_SLOT = [
+  [/malin|raspberr/i,         7],
+  [/jagod|strawberr/i,        5],
+  [/vanil/i,                  1],
+  [/lje[sš]nj|hazel/i,        2],
+  [/swiss|supreme/i,          3],
+  [/cookie|cream/i,           4],
+  [/banan/i,                  6],
+  [/dubai/i,                  7],
+  [/jaffa/i,                  8],
+  [/pista[cč]|pistach/i,      3],
+  [/kokos|coconut/i,          6],
+  [/white|bijel/i,            4],
+  [/karamel|caramel/i,        2],
+  [/kava|coffee|espresso/i,   2],
+  [/menta|mint/i,             3]
 ];
-const OKUS_REZERVA = ['#5e9cff','#af52de','#32ade6','#ff2d55','#30b0c7','#ffd60a','#66d19e','#ff6b35'];
 function bojaOkusa(ime){
   const t = String(ime||'');
-  for(const [re,b] of OKUS_BOJE) if(re.test(t)) return b;
+  for(const [re,n] of OKUS_SLOT) if(re.test(t)) return `var(--sb${n})`;
   let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0;
-  return OKUS_REZERVA[h%OKUS_REZERVA.length];
+  return `var(--sb${1+h%8})`;
 }
 
 /* ---------- ljuska ---------- */
