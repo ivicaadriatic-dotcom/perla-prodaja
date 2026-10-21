@@ -98,20 +98,30 @@ code{background:var(--kart2);padding:1px 6px;border-radius:5px;font-size:12.5px}
 .stup{display:flex;flex-direction:column;gap:14px;min-width:0}
 
 /* ---------- pokazatelji ---------- */
-.kpi-red{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px}
-.kpi{padding:16px 18px}
+.kpi-red{display:grid;grid-template-columns:1.25fr .8fr .8fr 2.1fr;gap:14px;margin-bottom:14px}
+.kpi{padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
 .kpi .lbl{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:650}
 .kpi .v{font-size:27px;font-weight:700;letter-spacing:-1.1px;margin-top:3px}
 .kpi.glavni .v{font-size:40px;letter-spacing:-1.8px}
 .kpi .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
-.kpi.sokusima{display:flex;align-items:center;gap:15px}
-.kpi.sokusima .kpi-t{min-width:0}
-.kpi.sokusima .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.sokusima{display:flex;flex-direction:row;align-items:center;gap:16px}
+.kpi.sokusima .kpi-t{min-width:0;flex:1}
+.okusi-lista{display:grid;grid-template-columns:1fr;gap:0;margin-top:4px}
+.okusi-lista .o{display:flex;align-items:center;gap:7px;font-size:11.5px;line-height:1.65;
+  cursor:pointer;min-width:0;transition:opacity .13s}
+.okusi-lista .o .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+.okusi-lista .o .p{font-weight:650;font-variant-numeric:tabular-nums;color:var(--text)}
+.okusi-lista .o.prig{opacity:.32}
 .krafna{flex:none;width:88px;height:88px;overflow:visible}
-.krafna circle{transition:opacity .13s;cursor:default}
-.krafna:hover circle{opacity:.35}
-.krafna circle:hover{opacity:1}
-@media(max-width:700px){ .kpi.sokusima{gap:11px} .krafna{width:66px;height:66px} }
+.krafna circle{transition:opacity .13s;cursor:pointer}
+@media (hover:hover) and (pointer:fine){
+  .krafna:hover circle{opacity:.35}
+  .krafna circle:hover{opacity:1}
+}
+.krafna circle.prig{opacity:.3}
+.krafna circle.ist{opacity:1}
+@media(max-width:860px){ .okusi-lista{grid-template-columns:1fr} }
+@media(max-width:700px){ .kpi.sokusima{gap:12px} .krafna{width:72px;height:72px} }
 
 /* ---------- karta ---------- */
 .karta-kart{position:relative;overflow:hidden;background:var(--more);min-height:520px}
@@ -1091,28 +1101,42 @@ const OKUS_SLOT = [
 ];
 /* Krafna: udio okusa u prometu. Najviše osam isječaka — ostatak se spaja u
    „Ostalo", jer preko toga boje više ne razlikuju ništa. */
-function krafna(P){
+/* Najviše osam stavki — preko toga se boje prestaju razlikovati, pa se
+   ostatak spaja u sivo „Ostalo". Isti popis hrani i krafnu i legendu. */
+function okusiZaKrafnu(P){
   const svi = P.filter(p=>p.iznos>0);
   const uk = svi.reduce((a,p)=>a+p.iznos,0);
-  if(!uk) return '';
+  if(!uk) return {lista:[], uk:0};
   let lista = svi;
   if(svi.length>8){
     const ost = svi.slice(7).reduce((a,p)=>a+p.iznos,0);
     lista = svi.slice(0,7).concat([{proizvod:'Ostalo', iznos:ost, komada:0, ostalo:true}]);
   }
+  return {lista: lista.map((p,i)=>({...p, i, dio:p.iznos/uk,
+    boja: p.ostalo ? 'var(--muted)' : bojaOkusa(p.proizvod)})), uk};
+}
+
+function krafna(lista){
+  if(!lista.length) return '';
   const r=15.5, o=2*Math.PI*r;
   let poc=0;
   const isj = lista.map(p=>{
-    const dio=p.iznos/uk;
-    const duz=Math.max(0.6, dio*o-1.1);          /* razmak između isječaka */
-    const boja = p.ostalo ? 'var(--muted)' : bojaOkusa(p.proizvod);
-    const el = `<circle cx="20" cy="20" r="${r}" fill="none" stroke="${boja}" stroke-width="7"
+    const duz=Math.max(0.6, p.dio*o-1.1);        /* razmak između isječaka */
+    const el = `<circle cx="20" cy="20" r="${r}" fill="none" stroke="${p.boja}" stroke-width="7"
       stroke-dasharray="${duz.toFixed(2)} ${(o-duz).toFixed(2)}"
-      stroke-dashoffset="${(-poc*o).toFixed(2)}"
-      data-okus="${esc(p.proizvod)}" data-iznos="${esc(eur(p.iznos))}" data-udio="${pst(100*dio)}"></circle>`;
-    poc+=dio; return el;
+      stroke-dashoffset="${(-poc*o).toFixed(2)}" data-i="${p.i}"
+      data-okus="${esc(p.proizvod)}" data-iznos="${esc(eur(p.iznos))}" data-udio="${pst(100*p.dio)}"></circle>`;
+    poc+=p.dio; return el;
   }).join('');
   return `<svg class="krafna" viewBox="0 0 40 40"><g transform="rotate(-90 20 20)">${isj}</g></svg>`;
+}
+
+function legendaOkusa(lista){
+  return `<div class="okusi-lista">${lista.map(p=>`<div class="o" data-i="${p.i}"
+      data-okus="${esc(p.proizvod)}" data-iznos="${esc(eur(p.iznos))}" data-udio="${pst(100*p.dio)}">
+      <span class="tocka" style="background:${p.boja}"></span>
+      <span class="n">${esc(p.proizvod)}</span>
+      <span class="p">${pst(100*p.dio)} %</span></div>`).join('')}</div>`;
 }
 
 function bojaOkusa(ime){
@@ -1243,11 +1267,12 @@ function pgPregled(){
         <div class="v">${eur(upogonu.length?uk.iznos/upogonu.length:0)}</div>
         <div class="sub">${aktivni} u radu${upogonu.length!==aktivni?' od '+upogonu.length:''}</div></div>`;
     })()}
-    ${(()=>{ const P=poProizvodu().filter(p=>p.iznos>0), uki=P.reduce((a,p)=>a+p.iznos,0), vod=P[0];
-      return `<div class="kart kpi sokusima">${krafna(P)}
-        <div class="kpi-t"><div class="lbl">Okusa u prodaji</div>
-          <div class="v">${P.length}</div>
-          <div class="sub">${vod?esc(vod.proizvod)+' · '+pst(uki?100*vod.iznos/uki:0)+' %':esc(perNaziv())}</div></div></div>`; })()}
+    ${(()=>{ const {lista} = okusiZaKrafnu(poProizvodu());
+      if(!lista.length) return `<div class="kart kpi"><div class="lbl">Okusa u prodaji</div>
+        <div class="v">0</div><div class="sub">${esc(perNaziv())}</div></div>`;
+      return `<div class="kart kpi sokusima">${krafna(lista)}
+        <div class="kpi-t"><div class="lbl">Udio u prometu · ${lista.length} ${mn(lista.length,'okus','okusa','okusa')}</div>
+          ${legendaOkusa(lista)}</div></div>`; })()}
   </div>
 
   <div class="mreza g21">
@@ -1913,6 +1938,24 @@ document.addEventListener('pointermove', e=>{
 });
 document.addEventListener('pointerout', e=>{
   if(e.target.closest && e.target.closest('[data-okus]')) tipSakrij();
+});
+
+/* Odabir okusa: dodir na isječak ili na redak legende ističe oboje.
+   Ponovni dodir na isti, ili dodir izvan, poništava odabir. */
+function istakniOkus(i){
+  const svg = document.querySelector('.krafna');
+  const leg = document.querySelector('.okusi-lista');
+  if(!svg || !leg) return;
+  const sve = [...svg.querySelectorAll('circle'), ...leg.querySelectorAll('.o')];
+  if(i === null){ sve.forEach(x=>x.classList.remove('prig','ist')); return; }
+  sve.forEach(x=>{ const svoj = x.dataset.i === String(i);
+    x.classList.toggle('ist', svoj); x.classList.toggle('prig', !svoj); });
+}
+document.addEventListener('click', e=>{
+  if(!document.querySelector('.okusi-lista')) return;
+  const c = e.target.closest && e.target.closest('.krafna [data-i], .okusi-lista .o');
+  if(!c){ istakniOkus(null); return; }
+  istakniOkus(c.classList.contains('ist') ? null : c.dataset.i);
 });
 /* uvoz i logo trebaju zakačiti događaje nakon svakog crtanja */
 const _crtaj = crtaj;
