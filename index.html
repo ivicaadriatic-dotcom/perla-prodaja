@@ -136,9 +136,11 @@ svg.karta{position:absolute;inset:0;width:100%;height:100%}
 .pin text.danas{font-size:19px;font-weight:700;fill:var(--crvena);stroke:none;letter-spacing:-.1px}
 .pin .plocica{fill:rgba(255,255,255,.96);stroke:rgba(0,0,0,.09);stroke-width:1;
   vector-effect:non-scaling-stroke;filter:url(#sjenaOznake)}
-/* Vodilja i strelica nose boju svog mjehurića — odmah se vidi čiji je koji iznos */
-.pin .vodilja{fill:none;stroke:var(--boja);stroke-width:2.2;
+/* Vodilja je diskretno siva; boja mjehurića stoji u --boja ako je zatreba.
+   Ispod nje ide svijetla podloga da se ne stopi s granicama na karti. */
+.pin .vodilja{fill:none;stroke:#3c3c43;stroke-width:1.9;opacity:.82;
   stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.pin .vodilja.podloga{stroke:#eceef2;stroke-width:4.6;opacity:.8}
 .karta-h{position:absolute;left:18px;top:16px;z-index:5;pointer-events:none;
   background:var(--kart);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
   border:1px solid var(--crta);border-radius:15px;padding:11px 15px;box-shadow:var(--sjena)}
@@ -1044,10 +1046,12 @@ function crtajPinove(stat, odabraniGrad){
           const R = Math.max(1, Math.min(6, duz/2, vis/2));   /* zaobljeni lakat */
           const p1x = lax - (lax-ox)/(duz||1)*R, p1y = yb - (yb-oy)/(duz||1)*R;
           const p2x = lax + (lijevo ? R : -R),   p2y = yb;
-          return `<path class="vodilja" d="M${ox.toFixed(1)},${oy.toFixed(1)}
+          const put = `M${ox.toFixed(1)},${oy.toFixed(1)}
                   L${p1x.toFixed(1)},${p1y.toFixed(1)}
                   Q${lax.toFixed(1)},${yb.toFixed(1)} ${p2x.toFixed(1)},${p2y.toFixed(1)}
-                  L${kra.toFixed(1)},${yb.toFixed(1)}"/>
+                  L${kra.toFixed(1)},${yb.toFixed(1)}`;
+          return `<path class="vodilja podloga" d="${put}"/>
+            <path class="vodilja" d="${put}"/>
             <rect class="plocica" x="${k.x1.toFixed(1)}" y="${k.y1.toFixed(1)}"
               width="${sir.toFixed(1)}" height="${vis.toFixed(1)}" rx="${(vis/2).toFixed(1)}"/>
             <text class="danas" x="${((k.x1+k.x2)/2).toFixed(1)}" y="${((k.y1+k.y2)/2).toFixed(1)}"
