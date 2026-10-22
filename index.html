@@ -197,6 +197,24 @@ svg.karta{position:absolute;inset:0;width:100%;height:100%}
 
 /* ---------- tablice ---------- */
 .tbl-om{overflow-x:auto}
+/* Dan koji se otvara u popis okusa */
+.dan-r{cursor:pointer}
+.dan-r:hover{background:rgba(127,127,127,.06)}
+.dan-r .kv{display:inline-flex;width:13px;height:13px;margin-right:7px;vertical-align:-1px;
+  color:var(--muted);transition:transform .18s ease}
+.dan-r .kv svg{width:13px;height:13px}
+.dan-r.otv .kv{transform:rotate(90deg)}
+.dan-det{display:none}
+.dan-det.otv{display:table-row}
+.dan-det>td{padding:0 12px 12px;border-bottom:1px solid var(--crta)}
+.dstav{background:var(--kart2);border-radius:12px;padding:4px 12px}
+.dstav-r{display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--crta);font-size:13.5px}
+.dstav-r:last-child{border-bottom:0}
+.dstav-r.uk{font-weight:700;border-top:1px solid var(--crta)}
+.dstav-r .k{color:var(--muted);min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+.dstav-r .i{font-weight:650;min-width:84px;text-align:right;font-variant-numeric:tabular-nums}
+.dstav-r.uk .k,.dstav-r.uk .i{color:inherit;font-weight:700}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--kart);color:var(--muted);font-size:10px;letter-spacing:.7px;text-transform:uppercase;
   font-weight:650;text-align:right;padding:9px 10px;border-bottom:1px solid var(--crta);white-space:nowrap}
@@ -455,7 +473,7 @@ td.radnje .btn{padding:5px 8px;margin-left:4px}
    PERLA NOTTE · PRODAJA — jezgra
    Podaci žive u Supabaseu; aplikacija ih čita i prikazuje.
    ========================================================= */
-const APP_VER = '1.0.0';
+const APP_VER = '1.4.0';   /* mora pratiti broj u sw.js */
 const SB_URL  = 'https://vvkyzqvdbbilrsqddnha.supabase.co';
 const SB_KEY  = 'sb_publishable_OXQKeW6H3tTPrhNM1qihdg_WHkiB2UN';   // javni ključ; podatke čuva RLS
 const ADMIN   = 'ivica.adriatic@gmail.com';
@@ -508,6 +526,7 @@ const ICO = {
   cloud:'<path d="M7 18a4 4 0 0 1 0-8 5.5 5.5 0 0 1 10.6 1.4A3.5 3.5 0 0 1 17 18z"/>',
   list:'<path d="M4 6h16M4 12h16M4 18h10"/>',
   more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  kv:'<path d="M9 5l7 7-7 7"/>',
   building:'<path d="M3 21h18M6 21V5l6-2 6 2v16"/><path d="M10 9h1M14 9h1M10 13h1M14 13h1M10 17h1M14 17h1"/>',
 };
 const ic = n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICO[n]||''}</svg>`;
@@ -1574,12 +1593,15 @@ function crtajGraf(){
 /* =========================================================
    PRODAJA — po okusima i danima
    ========================================================= */
-let PRO = {pogled:'okus'};
+let PRO = {pogled:'okus', otvoreni:new Set()};
 function pgProdaja(){
   const P=poProizvodu(), uk=ukupno();
   const dani={};
-  redci().forEach(r=>{ const d=dani[r.datum]=dani[r.datum]||{iznos:0,komada:0,stavki:0};
-    d.iznos+=num(r.iznos); d.komada+=(+r.komada||0); d.stavki++; });
+  redci().forEach(r=>{ const d=dani[r.datum]=dani[r.datum]||{iznos:0,komada:0,po:{}};
+    const k=r.proizvod||'—';
+    const o=d.po[k]=d.po[k]||{komada:0,iznos:0};
+    o.komada+=(+r.komada||0); o.iznos+=num(r.iznos);
+    d.iznos+=num(r.iznos); d.komada+=(+r.komada||0); });
   const niz=Object.entries(dani).sort((a,b)=>b[0].localeCompare(a[0]));
   return `
   <div class="ph"><div><div class="eyebrow">Perla Notte</div><h1>Prodaja</h1>
@@ -1607,16 +1629,38 @@ function pgProdaja(){
   <div class="kart"><div class="sek"><h2>Po danima</h2><span>${niz.length} ${mn(niz.length,'dan','dana','dana')}</span></div>
     <div class="tbl-om"><table>
       <thead><tr><th>Datum</th><th>Okusa</th><th>Komada</th><th>Promet</th><th>Po napitku</th><th></th></tr></thead>
-      <tbody>${niz.length?niz.map(([d,v])=>`<tr>
-        <td><b>${fDate(d)}</b><div class="gr">${esc(fDateLong(d))}</div></td>
-        <td class="broj mu">${v.stavki}</td>
+      <tbody>${niz.length?niz.map(([d,v])=>{
+        const otv = PRO.otvoreni.has(d);
+        const st = Object.entries(v.po).map(([p,o])=>({p, ...o})).sort((a,b)=>b.iznos-a.iznos);
+        return `<tr class="dan-r${otv?' otv':''}" data-dan="${d}" onclick="prekidacDana('${d}', event)"
+          title="Klik za popis okusa">
+        <td><b><span class="kv">${ic('kv')}</span>${fDate(d)}</b><div class="gr">${esc(fDateLong(d))}</div></td>
+        <td class="broj mu">${st.length}</td>
         <td class="broj">${brj(v.komada)}</td>
         <td class="broj"><b>${eur2(v.iznos)}</b></td>
         <td class="broj mu">${v.komada?eur2(v.iznos/v.komada):'—'}</td>
         <td class="radnje"><button class="btn sm" title="Ispravi" onclick="urediDan('${d}')">${ic('edit')}</button>
-          <button class="btn sm dan" title="Obriši dan" onclick="obrisiDan('${d}')">${ic('trash')}</button></td></tr>`).join('')
+          <button class="btn sm dan" title="Obriši dan" onclick="obrisiDan('${d}')">${ic('trash')}</button></td></tr>
+        <tr class="dan-det${otv?' otv':''}" data-dan="${d}"><td colspan="6"><div class="dstav">
+          ${st.map(x=>`<div class="dstav-r">
+            <span><span class="tocka" style="background:${bojaOkusa(x.p)}"></span>${esc(x.p)}</span>
+            <span class="k">${brj(x.komada)} kom</span><span class="i">${eur2(x.iznos)}</span></div>`).join('')}
+          <div class="dstav-r uk"><span>Ukupno</span>
+            <span class="k">${brj(v.komada)} kom</span><span class="i">${eur2(v.iznos)}</span></div>
+        </div></td></tr>`;}).join('')
         :`<tr><td colspan="6" class="mu" style="padding:18px">Nema prodaje u ovom razdoblju</td></tr>`}</tbody>
     </table></div></div>`}`;
+}
+
+/* Otvaranje i zatvaranje dana. Mijenja se samo razred na dva retka — bez ponovnog
+   iscrtavanja stranice, pa popis ne poskoči pod mišem. Popis otvorenih dana stoji
+   u PRO.otvoreni, da uživo osvježavanje ne zatvori ono što je korisnik otvorio. */
+function prekidacDana(d, e){
+  if(!d) return;
+  if(e && e.target.closest('.radnje')) return;     /* gumbi Ispravi i Obriši */
+  const otv = PRO.otvoreni.has(d);
+  otv ? PRO.otvoreni.delete(d) : PRO.otvoreni.add(d);
+  document.querySelectorAll(`tr[data-dan="${d}"]`).forEach(el=>el.classList.toggle('otv', !otv));
 }
 
 function izvezi(){

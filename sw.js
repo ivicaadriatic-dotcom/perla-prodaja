@@ -1,4 +1,4 @@
-const CACHE = 'perla-prodaja-v1.3.1';
+const CACHE = 'perla-prodaja-v1.4.0';
 /* Pri svakoj novoj verziji promijeniti broj iznad — stara se predmemorija
    tada briše pri aktivaciji, pa se instalirana aplikacija ne zaglavi na staroj. */
 self.addEventListener('install', e => { self.skipWaiting(); });
