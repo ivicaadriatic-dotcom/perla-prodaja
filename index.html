@@ -473,7 +473,7 @@ td.radnje .btn{padding:5px 8px;margin-left:4px}
    PERLA NOTTE · PRODAJA — jezgra
    Podaci žive u Supabaseu; aplikacija ih čita i prikazuje.
    ========================================================= */
-const APP_VER = '1.4.0';   /* mora pratiti broj u sw.js */
+const APP_VER = '1.4.1';   /* mora pratiti broj u sw.js */
 const SB_URL  = 'https://vvkyzqvdbbilrsqddnha.supabase.co';
 const SB_KEY  = 'sb_publishable_OXQKeW6H3tTPrhNM1qihdg_WHkiB2UN';   // javni ključ; podatke čuva RLS
 const ADMIN   = 'ivica.adriatic@gmail.com';
@@ -623,10 +623,22 @@ async function ucitaj(tiho){
     if(/istekla/i.test(e.message||'')){ AUTH=null; lsSet('auth',null); prikaziPrijavu(e.message); }
   }
 }
-/* prodaju vučemo za zadnjih 400 dana — dovoljno za sve prikaze */
+/* Prodaju vučemo za zadnjih 400 dana — dovoljno za sve prikaze.
+   Supabase vraća najviše tisuću redaka po pozivu, bez obzira na traženi limit,
+   pa idemo u dijelovima dok ne dođe nepuna stranica. Poredak mora biti
+   jednoznačan (datum pa id), inače stranice znaju preskočiti ili ponoviti redak. */
+const PRODAJA_KORAK = 1000;
 async function ucitajProdaju(){
   const od = addDays(isoDate(), -400);
-  DB.prodaja = await sb('pn_prodaja?select=id,datum,oznaka,proizvod,komada,iznos,razdoblje,do_datuma,uvoz_id&datum=gte.'+od+'&order=datum.desc&limit=50000') || [];
+  const polje = 'id,datum,oznaka,proizvod,komada,iznos,razdoblje,do_datuma,uvoz_id';
+  const sve = [];
+  for(let odmak = 0; odmak < 500000; odmak += PRODAJA_KORAK){
+    const dio = await sb('pn_prodaja?select='+polje+'&datum=gte.'+od
+      + '&order=datum.desc,id.asc&limit='+PRODAJA_KORAK+'&offset='+odmak) || [];
+    sve.push(...dio);
+    if(dio.length < PRODAJA_KORAK) break;
+  }
+  DB.prodaja = sve;
 }
 
 /* ---------- traka stanja ---------- */
